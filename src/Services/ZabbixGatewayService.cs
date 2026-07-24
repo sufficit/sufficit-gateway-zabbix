@@ -527,6 +527,9 @@ namespace Sufficit.Gateway.Zabbix
         internal static string ResolveTelephoneFailureCode(CallDispatchExecution dispatch)
         {
             var details = $"{dispatch.Message} {dispatch.Error}".ToUpperInvariant();
+            if (details.Contains("EXTENSION DOES NOT EXIST"))
+                return ZabbixGatewayMessageCodes.TelephoneInternalRouteMissing;
+
             if (details.Contains("CHANUNAVAIL")
                 || details.Contains("NO TELEPHONE ROUTE")
                 || details.Contains("NO TRUNK")
@@ -570,6 +573,8 @@ namespace Sufficit.Gateway.Zabbix
                     "The telephone worker did not receive a terminal dialing result before timeout.",
                 ZabbixGatewayMessageCodes.TelephoneNetworkCongestion =>
                     "The telephone network reported congestion.",
+                ZabbixGatewayMessageCodes.TelephoneInternalRouteMissing =>
+                    "The internal telephone route required to start the alert call is not configured.",
                 _ => "The telephone alert could not be delivered.",
             };
 

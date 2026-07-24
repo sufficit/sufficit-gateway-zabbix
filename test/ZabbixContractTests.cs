@@ -144,6 +144,7 @@ public sealed class ZabbixContractTests
     [InlineData("telephone delivery failed (TIMEOUT)", null, ZabbixGatewayMessageCodes.TelephoneResultTimedOut)]
     [InlineData("telephone delivery failed (CONGESTION)", null, ZabbixGatewayMessageCodes.TelephoneNetworkCongestion)]
     [InlineData("telephone delivery failed (HANGUP)", "Asterisk hangup cause: 3 (No route to destination).", ZabbixGatewayMessageCodes.TelephoneRouteUnavailable)]
+    [InlineData("the manager response indicates a failure", "Extension does not exist.", ZabbixGatewayMessageCodes.TelephoneInternalRouteMissing)]
     [InlineData("telephone delivery failed (UNKNOWN)", "unmapped error", ZabbixGatewayMessageCodes.TelephoneDeliveryFailed)]
     public void TelephoneFailures_MapToStableLocalizationCodes(
         string message,

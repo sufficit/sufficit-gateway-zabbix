@@ -163,6 +163,9 @@ namespace Sufficit.Gateway.Zabbix
         /// <summary>A legacy telephone worker accepted the request but did not confirm delivery.</summary>
         public const string TelephoneDeliveryNotConfirmed = "SGZ3207";
 
+        /// <summary>The internal Asterisk route required to originate the telephone alert does not exist.</summary>
+        public const string TelephoneInternalRouteMissing = "SGZ3208";
+
         /// <summary>The telephone dispatch ended with an unmapped delivery failure.</summary>
         public const string TelephoneDeliveryFailed = "SGZ3299";
 
