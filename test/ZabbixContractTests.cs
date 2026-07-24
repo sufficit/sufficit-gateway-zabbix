@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text;
@@ -154,6 +156,31 @@ public sealed class ZabbixContractTests
         Assert.Equal("ZabbixGatewayEFProvider", providerType.Name);
         Assert.Null(providerType.Assembly.GetType(
             "Sufficit.Gateway.Zabbix.EntityFramework.EFZabbixGatewayProvider"));
+    }
+
+    [Fact]
+    public void EntityFrameworkModel_PersistsApplicationOwnedStartTimes()
+    {
+        var options = new DbContextOptionsBuilder<EFZabbixGatewayDBContext>()
+            .UseMySql(
+                "Server=localhost;Database=dbvoiprt;User=test;",
+                new MySqlServerVersion(new Version(8, 0, 0)))
+            .Options;
+        using var dbContext = new EFZabbixGatewayDBContext(options);
+
+        var executionStart = dbContext.Model
+            .FindEntityType(typeof(ZabbixAlertExecution))!
+            .FindProperty(nameof(ZabbixAlertExecution.StartedAtUtc))!;
+        var attemptStart = dbContext.Model
+            .FindEntityType(typeof(ZabbixAlertAttempt))!
+            .FindProperty(nameof(ZabbixAlertAttempt.StartedAtUtc))!;
+        var executionTimestamp = dbContext.Model
+            .FindEntityType(typeof(ZabbixAlertExecution))!
+            .FindProperty(nameof(ZabbixAlertExecution.Timestamp))!;
+
+        Assert.Equal(ValueGenerated.Never, executionStart.ValueGenerated);
+        Assert.Equal(ValueGenerated.Never, attemptStart.ValueGenerated);
+        Assert.Equal(ValueGenerated.OnAddOrUpdate, executionTimestamp.ValueGenerated);
     }
 
     [Fact]

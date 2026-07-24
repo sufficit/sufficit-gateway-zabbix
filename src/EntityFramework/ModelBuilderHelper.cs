@@ -216,7 +216,7 @@ namespace Sufficit.Gateway.Zabbix.EntityFramework
             entity.Property(a => a.StartedAtUtc)
                 .HasColumnName("started_at_utc")
                 .HasColumnType("DATETIME(6)")
-                .HasSqlDateTimeAdjust();
+                .HasSqlDateTimeAdjust(false, false);
 
             entity.Property(a => a.FinishedAtUtc)
                 .HasColumnName("finished_at_utc")
@@ -298,7 +298,7 @@ namespace Sufficit.Gateway.Zabbix.EntityFramework
             entity.Property(a => a.StartedAtUtc)
                 .HasColumnName("started_at_utc")
                 .HasColumnType("DATETIME(6)")
-                .HasSqlDateTimeAdjust();
+                .HasSqlDateTimeAdjust(false, false);
 
             entity.Property(a => a.FinishedAtUtc)
                 .HasColumnName("finished_at_utc")
