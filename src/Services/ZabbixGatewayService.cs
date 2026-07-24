@@ -530,6 +530,9 @@ namespace Sufficit.Gateway.Zabbix
             if (details.Contains("EXTENSION DOES NOT EXIST"))
                 return ZabbixGatewayMessageCodes.TelephoneInternalRouteMissing;
 
+            if (details.Contains("MANAGER RESPONSE INDICATES A FAILURE"))
+                return ZabbixGatewayMessageCodes.TelephoneManagerRequestRejected;
+
             if (details.Contains("CHANUNAVAIL")
                 || details.Contains("NO TELEPHONE ROUTE")
                 || details.Contains("NO TRUNK")
@@ -575,6 +578,8 @@ namespace Sufficit.Gateway.Zabbix
                     "The telephone network reported congestion.",
                 ZabbixGatewayMessageCodes.TelephoneInternalRouteMissing =>
                     "The internal telephone route required to start the alert call is not configured.",
+                ZabbixGatewayMessageCodes.TelephoneManagerRequestRejected =>
+                    "The telephone system rejected the call request before dialing started.",
                 _ => "The telephone alert could not be delivered.",
             };
 
