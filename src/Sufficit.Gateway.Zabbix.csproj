@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
+
+  <PropertyGroup Label="Sufficit Targeting">
+    <TargetFrameworks>netstandard2.0;net7.0;net9.0;net10.0</TargetFrameworks>
+    <RootNamespace>Sufficit.Gateway.Zabbix</RootNamespace>
+    <AssemblyName>Sufficit.Gateway.Zabbix</AssemblyName>
+    <Configurations>Debug;Release;Packing</Configurations>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Versioning">
+    <VersionSuffix Condition=" '$(Configuration)' != 'Debug' ">1.$([System.DateTime]::UtcNow.ToString(yy)).$([System.DateTime]::UtcNow.ToString(MMdd)).$([System.DateTime]::UtcNow.ToString(HHmm))</VersionSuffix>
+    <AssemblyVersion Condition=" '$(VersionSuffix)' == '' ">1.99.0.0</AssemblyVersion>
+    <AssemblyVersion Condition=" '$(VersionSuffix)' != '' ">$(VersionSuffix)</AssemblyVersion>
+    <Version Condition=" '$(VersionSuffix)' == '' ">1.99.0.0</Version>
+    <Version Condition=" '$(VersionSuffix)' != '' ">$(VersionSuffix)</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Product General">
+    <Company>SUFFICIT SOLUÇÕES EM TECNOLOGIA DA INFORMAÇÃO</Company>
+    <Authors>Hugo Castro de Deco</Authors>
+    <ProductName>Sufficit Zabbix Telephony Gateway</ProductName>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PreserveCompilationReferences>false</PreserveCompilationReferences>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Package">
+    <Name>Sufficit.Gateway.Zabbix</Name>
+    <PackageId>Sufficit.Gateway.Zabbix</PackageId>
+    <PackageDescription>Zabbix gateway contracts, persistence and telephony alert automation for Sufficit.</PackageDescription>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/sufficit/sufficit-gateway-zabbix</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/sufficit/sufficit-gateway-zabbix</PackageProjectUrl>
+    <PackageLicenseFile>license</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup Label="Sufficit Pack Items">
+    <None Include="../license">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="../README.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="EntityFramework/Schema/*.sql">
+      <Pack>True</Pack>
+      <PackagePath>schema</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Label="Contracts-only netstandard target" Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Compile Remove="EntityFramework/**/*.cs" />
+    <Compile Remove="Services/ZabbixAutomationService.cs" />
+    <Compile Remove="Services/ZabbixGatewayService.cs" />
+    <Compile Remove="ServiceCollectionExtensions.cs" />
+  </ItemGroup>
+
+  <PropertyGroup Label="Sufficit Versioning Options" Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PkgVersion>[9.*,10.0.0)</PkgVersion>
+    <NoWarn>$(NoWarn);nullable</NoWarn>
+    <LangVersion>9.0</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Versioning Options" Condition=" '$(TargetFramework)' == 'net7.0' ">
+    <PkgVersion>[*,8.0.0)</PkgVersion>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Versioning Options" Condition=" '$(TargetFramework)' == 'net9.0' ">
+    <PkgVersion>[9.*,10.0.0)</PkgVersion>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Sufficit Versioning Options" Condition=" '$(TargetFramework)' == 'net10.0' ">
+    <PkgVersion>[10.*,11.0.0)</PkgVersion>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[*,9.0.0)" Condition=" '$(TargetFramework)' == 'net7.0' " />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="$(PkgVersion)" Condition=" '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0' " />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(PkgVersion)" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="$(PkgVersion)" Condition=" '$(TargetFramework)' == 'net7.0' OR '$(TargetFramework)' == 'net9.0' " />
+    <PackageReference Include="MySql.EntityFrameworkCore" Version="[10.*,11.0.0)" Condition=" '$(TargetFramework)' == 'net10.0' " />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(PkgVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(PkgVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(PkgVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(PkgVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(PkgVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="$(PkgVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="[8.0.5,9.0.0)" Condition=" '$(TargetFramework)' == 'net7.0' " />
+    <PackageReference Include="System.Text.Json" Version="$(PkgVersion)" Condition=" '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net10.0' " />
+  </ItemGroup>
+
+  <ItemGroup Label="Sufficit Dependencies">
+    <ProjectReference Include="../../sufficit-base/src/Sufficit.Base.csproj" Condition="Exists('..\\..\\sufficit-base\\src\\Sufficit.Base.csproj')" />
+    <PackageReference Include="Sufficit.Base" Version="1.*" Condition="!Exists('..\\..\\sufficit-base\\src\\Sufficit.Base.csproj')" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/tmp/
+src/nupkgs/
+.vs/
+*.user
+*-local.csproj
+*.nupkg
+**/.artifacts/
+**/artifacts/
