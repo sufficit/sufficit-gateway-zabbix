@@ -353,9 +353,17 @@ namespace Sufficit.Gateway.Zabbix
 
             foreach (var attempt in attempts)
             {
+                var isTerminalAttempt = IsTerminal(attempt.Status);
+                var canInspectGenericFailure =
+                    attempt.Status == ZabbixAlertAttemptStatus.Failed
+                    && string.Equals(
+                        attempt.ErrorCode,
+                        ZabbixGatewayMessageCodes.TelephoneDeliveryFailed,
+                        StringComparison.Ordinal);
+
                 if (!attempt.DispatchId.HasValue
                     || attempt.DispatchId.Value == Guid.Empty
-                    || IsTerminal(attempt.Status))
+                    || (isTerminalAttempt && !canInspectGenericFailure))
                 {
                     continue;
                 }
@@ -371,6 +379,9 @@ namespace Sufficit.Gateway.Zabbix
                 {
                     case CallDispatchExecutionStatus.Pending:
                     case CallDispatchExecutionStatus.Running:
+                        if (isTerminalAttempt)
+                            break;
+
                         if (attempt.Status != ZabbixAlertAttemptStatus.Running)
                         {
                             attempt.Status = ZabbixAlertAttemptStatus.Running;
@@ -379,6 +390,9 @@ namespace Sufficit.Gateway.Zabbix
                         break;
 
                     case CallDispatchExecutionStatus.Completed:
+                        if (isTerminalAttempt)
+                            break;
+
                         if (IsConfirmedDelivery(dispatch))
                         {
                             CompleteAttempt(attempt, dispatch);
@@ -396,12 +410,16 @@ namespace Sufficit.Gateway.Zabbix
                         break;
 
                     case CallDispatchExecutionStatus.Failed:
-                        FailAttempt(
-                            attempt,
-                            dispatch,
-                            ResolveTelephoneFailureCode(dispatch),
-                            ResolveTelephoneFailureMessage(dispatch));
-                        attemptChanged = true;
+                        var failureCode = ResolveTelephoneFailureCode(dispatch);
+                        if (ShouldApplyTelephoneFailure(attempt, failureCode))
+                        {
+                            FailAttempt(
+                                attempt,
+                                dispatch,
+                                failureCode,
+                                ResolveTelephoneFailureMessage(dispatch));
+                            attemptChanged = true;
+                        }
                         break;
                 }
 
@@ -587,6 +605,24 @@ namespace Sufficit.Gateway.Zabbix
             => dispatch.Status == CallDispatchExecutionStatus.Completed
                 && !string.IsNullOrWhiteSpace(dispatch.Message)
                 && dispatch.Message.IndexOf("answered the call", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        internal static bool ShouldApplyTelephoneFailure(
+            ZabbixAlertAttempt attempt,
+            string resolvedFailureCode)
+        {
+            if (!IsTerminal(attempt.Status))
+                return true;
+
+            return attempt.Status == ZabbixAlertAttemptStatus.Failed
+                && string.Equals(
+                    attempt.ErrorCode,
+                    ZabbixGatewayMessageCodes.TelephoneDeliveryFailed,
+                    StringComparison.Ordinal)
+                && !string.Equals(
+                    resolvedFailureCode,
+                    ZabbixGatewayMessageCodes.TelephoneDeliveryFailed,
+                    StringComparison.Ordinal);
+        }
 
         private static bool IsTerminal(ZabbixAlertAttemptStatus status)
             => status == ZabbixAlertAttemptStatus.Completed

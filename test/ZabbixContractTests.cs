@@ -185,6 +185,28 @@ public sealed class ZabbixContractTests
         Assert.Equal(expected, ZabbixGatewayService.IsConfirmedDelivery(dispatch));
     }
 
+    [Theory]
+    [InlineData(ZabbixAlertAttemptStatus.Running, null, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, true)]
+    [InlineData(ZabbixAlertAttemptStatus.Failed, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, ZabbixGatewayMessageCodes.TelephoneManagerRequestRejected, true)]
+    [InlineData(ZabbixAlertAttemptStatus.Failed, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, false)]
+    [InlineData(ZabbixAlertAttemptStatus.Failed, ZabbixGatewayMessageCodes.TelephoneDestinationBusy, ZabbixGatewayMessageCodes.TelephoneManagerRequestRejected, false)]
+    public void HistoricalFailures_OnlyPromoteGenericCodes(
+        ZabbixAlertAttemptStatus status,
+        string? currentCode,
+        string resolvedCode,
+        bool expected)
+    {
+        var attempt = new ZabbixAlertAttempt
+        {
+            Status = status,
+            ErrorCode = currentCode,
+        };
+
+        Assert.Equal(
+            expected,
+            ZabbixGatewayService.ShouldApplyTelephoneFailure(attempt, resolvedCode));
+    }
+
     [Fact]
     public void GatewayException_PreservesCodeKindAndEnglishFallback()
     {
