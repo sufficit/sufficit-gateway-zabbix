@@ -142,6 +142,30 @@ namespace Sufficit.Gateway.Zabbix
         /// <summary>The authenticated caller cannot access the requested tenant context.</summary>
         public const string ContextAccessDenied = "SGZ3111";
 
+        /// <summary>No telephone route or trunk was available for the destination.</summary>
+        public const string TelephoneRouteUnavailable = "SGZ3201";
+
+        /// <summary>The telephone destination was busy.</summary>
+        public const string TelephoneDestinationBusy = "SGZ3202";
+
+        /// <summary>The telephone destination did not answer.</summary>
+        public const string TelephoneDestinationNoAnswer = "SGZ3203";
+
+        /// <summary>The telephone dialing attempt was canceled or aborted before delivery.</summary>
+        public const string TelephoneAttemptCanceled = "SGZ3204";
+
+        /// <summary>The telephone worker did not receive a terminal dialing result before timeout.</summary>
+        public const string TelephoneResultTimedOut = "SGZ3205";
+
+        /// <summary>The telephone network reported congestion.</summary>
+        public const string TelephoneNetworkCongestion = "SGZ3206";
+
+        /// <summary>A legacy telephone worker accepted the request but did not confirm delivery.</summary>
+        public const string TelephoneDeliveryNotConfirmed = "SGZ3207";
+
+        /// <summary>The telephone dispatch ended with an unmapped delivery failure.</summary>
+        public const string TelephoneDeliveryFailed = "SGZ3299";
+
         /// <summary>An entity cannot be persisted because its primary-key metadata is missing.</summary>
         public const string EntityPrimaryKeyMissing = "SGZ4001";
 

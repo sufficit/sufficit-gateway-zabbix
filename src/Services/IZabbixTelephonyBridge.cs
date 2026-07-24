@@ -26,5 +26,16 @@ namespace Sufficit.Gateway.Zabbix
         Task<CallDispatchStartResult> StartCallDispatchAsync(
             CallDispatchRequest request,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the current persisted state of one child Call Dispatch execution.
+        /// Used by the Zabbix runtime to reconcile asynchronous telephone delivery.
+        /// </summary>
+        /// <param name="dispatchId">Child Call Dispatch execution identifier.</param>
+        /// <param name="cancellationToken">Cancellation token for the persistence lookup.</param>
+        /// <returns>The child execution when it exists; otherwise <see langword="null"/>.</returns>
+        Task<CallDispatchExecution?> GetCallDispatchExecutionAsync(
+            Guid dispatchId,
+            CancellationToken cancellationToken = default);
     }
 }

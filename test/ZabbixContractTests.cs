@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using Sufficit.Gateway.Zabbix;
 using Sufficit.Gateway.Zabbix.EntityFramework;
+using Sufficit.Telephony.CallDispatch;
 
 namespace Sufficit.Gateway.Zabbix.Tests;
 
@@ -133,6 +134,53 @@ public sealed class ZabbixContractTests
 
         Assert.Contains("\"message_code\":\"SGZ1003\"", statusJson);
         Assert.Contains("\"message_code\":\"SGZ3005\"", resultJson);
+    }
+
+    [Theory]
+    [InlineData("telephone delivery failed (CHANUNAVAIL)", null, ZabbixGatewayMessageCodes.TelephoneRouteUnavailable)]
+    [InlineData("telephone delivery failed (BUSY)", null, ZabbixGatewayMessageCodes.TelephoneDestinationBusy)]
+    [InlineData("telephone delivery failed (NOANSWER)", null, ZabbixGatewayMessageCodes.TelephoneDestinationNoAnswer)]
+    [InlineData("telephone delivery failed (CANCEL)", null, ZabbixGatewayMessageCodes.TelephoneAttemptCanceled)]
+    [InlineData("telephone delivery failed (TIMEOUT)", null, ZabbixGatewayMessageCodes.TelephoneResultTimedOut)]
+    [InlineData("telephone delivery failed (CONGESTION)", null, ZabbixGatewayMessageCodes.TelephoneNetworkCongestion)]
+    [InlineData("telephone delivery failed (HANGUP)", "Asterisk hangup cause: 3 (No route to destination).", ZabbixGatewayMessageCodes.TelephoneRouteUnavailable)]
+    [InlineData("telephone delivery failed (UNKNOWN)", "unmapped error", ZabbixGatewayMessageCodes.TelephoneDeliveryFailed)]
+    public void TelephoneFailures_MapToStableLocalizationCodes(
+        string message,
+        string? error,
+        string expectedCode)
+    {
+        var dispatch = new CallDispatchExecution
+        {
+            Status = CallDispatchExecutionStatus.Failed,
+            Message = message,
+            Error = error,
+        };
+
+        Assert.Equal(
+            expectedCode,
+            ZabbixGatewayService.ResolveTelephoneFailureCode(dispatch));
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                ZabbixGatewayService.ResolveTelephoneFailureMessage(dispatch)));
+    }
+
+    [Theory]
+    [InlineData(CallDispatchExecutionStatus.Completed, "The telephone destination answered the call.", true)]
+    [InlineData(CallDispatchExecutionStatus.Completed, "Success", false)]
+    [InlineData(CallDispatchExecutionStatus.Failed, "The telephone destination answered the call.", false)]
+    public void DeliveryConfirmation_RejectsLegacyAmiAcknowledgements(
+        CallDispatchExecutionStatus status,
+        string message,
+        bool expected)
+    {
+        var dispatch = new CallDispatchExecution
+        {
+            Status = status,
+            Message = message,
+        };
+
+        Assert.Equal(expected, ZabbixGatewayService.IsConfirmedDelivery(dispatch));
     }
 
     [Fact]

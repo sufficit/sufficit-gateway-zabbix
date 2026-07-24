@@ -334,6 +334,134 @@ namespace Sufficit.Gateway.Zabbix
         }
 
         /// <summary>
+        /// Reconciles one persisted Zabbix alert with the terminal state of its child
+        /// Call Dispatch executions and persists any resulting lifecycle changes.
+        /// </summary>
+        /// <param name="execution">Zabbix execution previously loaded from persistence.</param>
+        /// <param name="cancellationToken">Cancellation token for telephony and persistence operations.</param>
+        /// <returns>The supplied execution updated to its current observable state.</returns>
+        public async Task<ZabbixAlertExecution> ReconcileExecutionAsync(
+            ZabbixAlertExecution execution,
+            CancellationToken cancellationToken = default)
+        {
+            if (execution == null)
+                throw new ArgumentNullException(nameof(execution));
+
+            var attempts = (await _provider.ListAttempts(execution.Id, cancellationToken)).ToList();
+            if (attempts.Count == 0)
+                return execution;
+
+            foreach (var attempt in attempts)
+            {
+                if (!attempt.DispatchId.HasValue
+                    || attempt.DispatchId.Value == Guid.Empty
+                    || IsTerminal(attempt.Status))
+                {
+                    continue;
+                }
+
+                var dispatch = await _telephony.GetCallDispatchExecutionAsync(
+                    attempt.DispatchId.Value,
+                    cancellationToken);
+                if (dispatch == null)
+                    continue;
+
+                var attemptChanged = false;
+                switch (dispatch.Status)
+                {
+                    case CallDispatchExecutionStatus.Pending:
+                    case CallDispatchExecutionStatus.Running:
+                        if (attempt.Status != ZabbixAlertAttemptStatus.Running)
+                        {
+                            attempt.Status = ZabbixAlertAttemptStatus.Running;
+                            attemptChanged = true;
+                        }
+                        break;
+
+                    case CallDispatchExecutionStatus.Completed:
+                        if (IsConfirmedDelivery(dispatch))
+                        {
+                            CompleteAttempt(attempt, dispatch);
+                        }
+                        else
+                        {
+                            FailAttempt(
+                                attempt,
+                                dispatch,
+                                ZabbixGatewayMessageCodes.TelephoneDeliveryNotConfirmed,
+                                "The telephone worker accepted the request but did not confirm delivery.");
+                        }
+
+                        attemptChanged = true;
+                        break;
+
+                    case CallDispatchExecutionStatus.Failed:
+                        FailAttempt(
+                            attempt,
+                            dispatch,
+                            ResolveTelephoneFailureCode(dispatch),
+                            ResolveTelephoneFailureMessage(dispatch));
+                        attemptChanged = true;
+                        break;
+                }
+
+                if (attemptChanged)
+                    await _provider.UpdateAttempt(attempt, cancellationToken);
+            }
+
+            var previousStatus = execution.Status;
+            var previousFinishedAtUtc = execution.FinishedAtUtc;
+            var previousErrorCode = execution.ErrorCode;
+            var previousError = execution.Error;
+
+            if (attempts.Any(attempt => !IsTerminal(attempt.Status)))
+            {
+                execution.Status = ZabbixAlertExecutionStatus.Running;
+                execution.FinishedAtUtc = null;
+                execution.ErrorCode = null;
+                execution.Error = null;
+            }
+            else if (attempts.Any(attempt => attempt.Status == ZabbixAlertAttemptStatus.Completed))
+            {
+                execution.Status = ZabbixAlertExecutionStatus.Completed;
+                execution.FinishedAtUtc = attempts.Max(attempt => attempt.FinishedAtUtc) ?? DateTime.UtcNow;
+                execution.ErrorCode = null;
+                execution.Error = null;
+            }
+            else
+            {
+                var primaryFailure = attempts
+                    .Where(attempt => attempt.Status == ZabbixAlertAttemptStatus.Failed)
+                    .OrderBy(attempt => attempt.Priority)
+                    .ThenBy(attempt => attempt.AttemptNumber)
+                    .FirstOrDefault();
+
+                execution.Status = ZabbixAlertExecutionStatus.Failed;
+                execution.FinishedAtUtc = attempts.Max(attempt => attempt.FinishedAtUtc) ?? DateTime.UtcNow;
+                execution.ErrorCode = primaryFailure?.ErrorCode
+                    ?? ZabbixGatewayMessageCodes.TelephoneDeliveryFailed;
+                execution.Error = primaryFailure?.Error
+                    ?? "The telephone alert could not be delivered.";
+            }
+
+            if (previousStatus != execution.Status
+                || previousFinishedAtUtc != execution.FinishedAtUtc
+                || !string.Equals(previousErrorCode, execution.ErrorCode, StringComparison.Ordinal)
+                || !string.Equals(previousError, execution.Error, StringComparison.Ordinal))
+            {
+                await _provider.UpdateExecution(execution, cancellationToken);
+
+                _logger.LogInformation(
+                    "zabbix alert reconciled: alert={alertid}, status={status}, errorCode={errorcode}",
+                    execution.Id,
+                    execution.Status,
+                    execution.ErrorCode);
+            }
+
+            return execution;
+        }
+
+        /// <summary>
         /// Validates that an optional outbound identifier resolves to a DID owned by the same context.
         /// Returning <see langword="null"/> means the workflow must use the configured default identifier path.
         /// </summary>
@@ -395,6 +523,87 @@ namespace Sufficit.Gateway.Zabbix
         /// </summary>
         private static string? NormalizeOptionalText(string? value)
             => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        internal static string ResolveTelephoneFailureCode(CallDispatchExecution dispatch)
+        {
+            var details = $"{dispatch.Message} {dispatch.Error}".ToUpperInvariant();
+            if (details.Contains("CHANUNAVAIL")
+                || details.Contains("NO TELEPHONE ROUTE")
+                || details.Contains("NO TRUNK")
+                || details.Contains("ROUTE OR TRUNK")
+                || details.Contains("NO ROUTE")
+                || details.Contains("HANGUP CAUSE: 3"))
+            {
+                return ZabbixGatewayMessageCodes.TelephoneRouteUnavailable;
+            }
+
+            if (details.Contains("NOANSWER") || details.Contains("DID NOT ANSWER"))
+                return ZabbixGatewayMessageCodes.TelephoneDestinationNoAnswer;
+
+            if (details.Contains("BUSY"))
+                return ZabbixGatewayMessageCodes.TelephoneDestinationBusy;
+
+            if (details.Contains("CANCEL") || details.Contains("ABORT"))
+                return ZabbixGatewayMessageCodes.TelephoneAttemptCanceled;
+
+            if (details.Contains("TIMEOUT"))
+                return ZabbixGatewayMessageCodes.TelephoneResultTimedOut;
+
+            if (details.Contains("CONGESTION"))
+                return ZabbixGatewayMessageCodes.TelephoneNetworkCongestion;
+
+            return ZabbixGatewayMessageCodes.TelephoneDeliveryFailed;
+        }
+
+        internal static string ResolveTelephoneFailureMessage(CallDispatchExecution dispatch)
+            => ResolveTelephoneFailureCode(dispatch) switch
+            {
+                ZabbixGatewayMessageCodes.TelephoneRouteUnavailable =>
+                    "No telephone route or trunk was available for the destination.",
+                ZabbixGatewayMessageCodes.TelephoneDestinationBusy =>
+                    "The telephone destination was busy.",
+                ZabbixGatewayMessageCodes.TelephoneDestinationNoAnswer =>
+                    "The telephone destination did not answer.",
+                ZabbixGatewayMessageCodes.TelephoneAttemptCanceled =>
+                    "The telephone dialing attempt was canceled or aborted before delivery.",
+                ZabbixGatewayMessageCodes.TelephoneResultTimedOut =>
+                    "The telephone worker did not receive a terminal dialing result before timeout.",
+                ZabbixGatewayMessageCodes.TelephoneNetworkCongestion =>
+                    "The telephone network reported congestion.",
+                _ => "The telephone alert could not be delivered.",
+            };
+
+        internal static bool IsConfirmedDelivery(CallDispatchExecution dispatch)
+            => dispatch.Status == CallDispatchExecutionStatus.Completed
+                && !string.IsNullOrWhiteSpace(dispatch.Message)
+                && dispatch.Message.IndexOf("answered the call", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private static bool IsTerminal(ZabbixAlertAttemptStatus status)
+            => status == ZabbixAlertAttemptStatus.Completed
+                || status == ZabbixAlertAttemptStatus.Failed
+                || status == ZabbixAlertAttemptStatus.Canceled;
+
+        private static void CompleteAttempt(
+            ZabbixAlertAttempt attempt,
+            CallDispatchExecution dispatch)
+        {
+            attempt.Status = ZabbixAlertAttemptStatus.Completed;
+            attempt.FinishedAtUtc = dispatch.FinishedAtUtc ?? DateTime.UtcNow;
+            attempt.ErrorCode = null;
+            attempt.Error = null;
+        }
+
+        private static void FailAttempt(
+            ZabbixAlertAttempt attempt,
+            CallDispatchExecution dispatch,
+            string errorCode,
+            string error)
+        {
+            attempt.Status = ZabbixAlertAttemptStatus.Failed;
+            attempt.FinishedAtUtc = dispatch.FinishedAtUtc ?? DateTime.UtcNow;
+            attempt.ErrorCode = errorCode;
+            attempt.Error = error;
+        }
 
         private async Task<CallDispatchConfiguration> GetCallDispatchConfigurationAsync(Guid contextId, Guid callDispatchId, CancellationToken cancellationToken)
         {
