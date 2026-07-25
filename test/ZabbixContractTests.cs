@@ -185,6 +185,36 @@ public sealed class ZabbixContractTests
         Assert.Equal(expected, ZabbixGatewayService.IsConfirmedDelivery(dispatch));
     }
 
+    [Fact]
+    public void DispatchText_DescribesTheAlertAndNormalizesControlCharacters()
+    {
+        var text = ZabbixGatewayService.BuildDispatchText(new ZabbixAlertStartRequest
+        {
+            Severity = "High",
+            Host = "database-01",
+            Trigger = "Replication stopped",
+            Message = "No events received.\r\nCheck the replica.",
+        });
+
+        Assert.Equal(
+            "Alerta Zabbix. Severidade: High. Host: database-01. Replication stopped. No events received. Check the replica.",
+            text);
+        Assert.DoesNotContain('\r', text);
+        Assert.DoesNotContain('\n', text);
+    }
+
+    [Fact]
+    public void DispatchText_IsBoundedForTelephonyPersistence()
+    {
+        var text = ZabbixGatewayService.BuildDispatchText(new ZabbixAlertStartRequest
+        {
+            Subject = new string('a', 1200),
+        });
+
+        Assert.Equal(1000, text.Length);
+        Assert.EndsWith(".", text);
+    }
+
     [Theory]
     [InlineData(ZabbixAlertAttemptStatus.Running, null, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, true)]
     [InlineData(ZabbixAlertAttemptStatus.Failed, ZabbixGatewayMessageCodes.TelephoneDeliveryFailed, ZabbixGatewayMessageCodes.TelephoneManagerRequestRejected, true)]

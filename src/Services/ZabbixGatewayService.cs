@@ -18,6 +18,7 @@ namespace Sufficit.Gateway.Zabbix
     {
         private const string FlapKeySeparator = "|";
         private const int MaxDispatchLabelLength = 120;
+        private const int MaxDispatchTextLength = 1000;
 
         private readonly ZabbixGatewayEFProvider _provider;
         private readonly IZabbixTelephonyBridge _telephony;
@@ -692,6 +693,7 @@ namespace Sufficit.Gateway.Zabbix
                 Destination = destination.PhoneNumber,
                 ExternalId = alertId.ToString("N"),
                 Label = BuildDispatchLabel(integration, callDispatchConfiguration, request),
+                Text = BuildDispatchText(request),
             };
 
         private static string BuildDispatchLabel(
@@ -710,6 +712,59 @@ namespace Sufficit.Gateway.Zabbix
                 return label;
 
             return label.Substring(0, MaxDispatchLabelLength);
+        }
+
+        internal static string BuildDispatchText(ZabbixAlertStartRequest? request)
+        {
+            var parts = new List<string> { "Alerta Zabbix." };
+            AddSpokenPart(parts, "Severidade", request?.Severity);
+            AddSpokenPart(parts, "Host", request?.Host);
+
+            var subject = NormalizeOptionalText(request?.Subject)
+                ?? NormalizeOptionalText(request?.Trigger);
+            if (subject != null)
+                parts.Add(EnsureSentence(subject));
+
+            var message = NormalizeOptionalText(request?.Message);
+            if (message != null && !string.Equals(message, subject, StringComparison.OrdinalIgnoreCase))
+                parts.Add(EnsureSentence(message));
+
+            var text = NormalizeSpokenText(string.Join(" ", parts));
+            return text.Length <= MaxDispatchTextLength
+                ? text
+                : text.Substring(0, MaxDispatchTextLength - 1).TrimEnd() + ".";
+        }
+
+        private static void AddSpokenPart(ICollection<string> parts, string label, string? value)
+        {
+            var normalized = NormalizeOptionalText(value);
+            if (normalized != null)
+                parts.Add($"{label}: {EnsureSentence(normalized)}");
+        }
+
+        private static string EnsureSentence(string value)
+        {
+            var normalized = NormalizeSpokenText(value);
+            if (normalized.EndsWith(".", StringComparison.Ordinal)
+                || normalized.EndsWith("!", StringComparison.Ordinal)
+                || normalized.EndsWith("?", StringComparison.Ordinal))
+                return normalized;
+
+            return normalized + ".";
+        }
+
+        private static string NormalizeSpokenText(string value)
+        {
+            var normalized = value
+                .Replace('\r', ' ')
+                .Replace('\n', ' ')
+                .Replace('\t', ' ')
+                .Trim();
+
+            while (normalized.Contains("  "))
+                normalized = normalized.Replace("  ", " ");
+
+            return normalized;
         }
 
         private static void ValidateDigit(uint? digit)
