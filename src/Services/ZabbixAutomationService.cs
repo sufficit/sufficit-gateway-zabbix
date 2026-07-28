@@ -151,6 +151,82 @@ namespace Sufficit.Gateway.Zabbix
             };
         }
 
+        /// <summary>
+        /// Reads and describes existing actions in the customer's Zabbix, by name. This is the
+        /// only read-only counterpart to <see cref="ConfigureAsync"/>: it always calls the fixed
+        /// <c>action.get</c> method (never a caller-supplied method) and never writes anything.
+        /// Used to explain configuration the customer already owns, such as why an action with
+        /// several conditions of the same type might never fire.
+        /// </summary>
+        public async Task<IReadOnlyList<ZabbixActionSummary>> ExplainActionsAsync(
+            ZabbixActionExplainRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var connection = await ValidateConnectionAsync(
+                new ZabbixAutomationRequest { Id = request.Id },
+                cancellationToken);
+
+            object payload = string.IsNullOrWhiteSpace(request.ActionName)
+                ? new { output = "extend", selectFilter = "extend" }
+                : new { output = "extend", selectFilter = "extend", filter = new { name = new[] { request.ActionName } } };
+
+            var result = await CallZabbixAsync(connection.ApiUri, "action.get", payload, connection.Token, cancellationToken);
+            return ParseActionSummaries(result);
+        }
+
+        internal static List<ZabbixActionSummary> ParseActionSummaries(JsonElement result)
+        {
+            var summaries = new List<ZabbixActionSummary>();
+            if (result.ValueKind != JsonValueKind.Array)
+                return summaries;
+
+            foreach (var item in result.EnumerateArray())
+            {
+                var summary = new ZabbixActionSummary
+                {
+                    ActionId = GetOptionalString(item, "actionid"),
+                    Name = GetOptionalString(item, "name"),
+                    Status = GetOptionalInt32(item, "status"),
+                };
+
+                if (item.TryGetProperty("filter", out var filterElement) && filterElement.ValueKind == JsonValueKind.Object)
+                {
+                    summary.EvaluationType = GetOptionalInt32(filterElement, "evaltype");
+                    summary.EvaluationTypeLabel = DescribeEvaluationType(summary.EvaluationType);
+                    summary.Formula = GetOptionalString(filterElement, "formula");
+
+                    if (filterElement.TryGetProperty("conditions", out var conditions) && conditions.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var condition in conditions.EnumerateArray())
+                        {
+                            summary.Conditions.Add(new ZabbixActionConditionSummary
+                            {
+                                ConditionType = GetOptionalInt32(condition, "conditiontype"),
+                                Operator = GetOptionalInt32(condition, "operator"),
+                                Value = GetOptionalString(condition, "value"),
+                            });
+                        }
+                    }
+                }
+
+                summaries.Add(summary);
+            }
+
+            return summaries;
+        }
+
+        internal static string? DescribeEvaluationType(int evaluationType) => evaluationType switch
+        {
+            0 => "And/Or: conditions of the same type are combined with Or, different types are combined with And.",
+            1 => "And: every condition must match the same single event. Two conditions of the same type with different values can never both match one event, so the action never fires.",
+            2 => "Or: any single matching condition is enough for the action to fire.",
+            3 => "Custom expression.",
+            _ => null,
+        };
+
+        private static int GetOptionalInt32(JsonElement element, string property)
+            => int.TryParse(GetOptionalString(element, property), out var value) ? value : 0;
+
         private async Task<ZabbixAutomationConnection> ValidateConnectionAsync(
             ZabbixAutomationRequest request,
             CancellationToken cancellationToken)
