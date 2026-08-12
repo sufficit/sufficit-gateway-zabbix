@@ -9,13 +9,7 @@ namespace Sufficit.Gateway.Zabbix.EntityFramework
 
         public static void Configure(DbContextOptionsBuilder options, string connectionString)
         {
-#if NET10_0_OR_GREATER
-            options.UseMySQL(
-                connectionString,
-                provider => provider
-                    .EnableRetryOnFailure(2)
-                    .CommandTimeout(CommandTimeoutSeconds));
-#elif NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             var version = ServerVersions.GetOrAdd(connectionString, value => ServerVersion.AutoDetect(value));
             options.UseMySql(
                 connectionString,
@@ -32,7 +26,7 @@ namespace Sufficit.Gateway.Zabbix.EntityFramework
 #endif
         }
 
-#if NET5_0_OR_GREATER && !NET10_0_OR_GREATER
+#if NET5_0_OR_GREATER
         private static readonly ConcurrentDictionary<string, ServerVersion> ServerVersions =
             new ConcurrentDictionary<string, ServerVersion>();
 #endif
