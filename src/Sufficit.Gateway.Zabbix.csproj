@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
 
   <PropertyGroup Label="Sufficit Targeting">
@@ -102,8 +102,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Sufficit Dependencies">
-    <ProjectReference Include="../../sufficit-base/src/Sufficit.Base.csproj" Condition="Exists('..\\..\\sufficit-base\\src\\Sufficit.Base.csproj')" />
-    <PackageReference Include="Sufficit.Base" Version="1.*" Condition="!Exists('..\\..\\sufficit-base\\src\\Sufficit.Base.csproj')" />
+    <ProjectReference Include="/mnt/sufficit/sufficit-base/.worktrees/context-purge-20260914182449/src/Sufficit.Base.csproj" Condition="Exists('/mnt/sufficit/sufficit-base/.worktrees/context-purge-20260914182449/src/Sufficit.Base.csproj')" />
+    <PackageReference Include="Sufficit.Base" Version="1.*" Condition="!Exists('/mnt/sufficit/sufficit-base/.worktrees/context-purge-20260914182449/src/Sufficit.Base.csproj')" />
   </ItemGroup>
 
 </Project>
