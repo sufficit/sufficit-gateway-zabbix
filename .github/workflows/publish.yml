@@ -14,7 +14,7 @@ jobs:
   # passo NuGet/login falha com HTTP 401 - e esse exatamente o sinal buscado.
   verify-auth:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: aireset-ci
+    runs-on: linux-general
     timeout-minutes: 5
     permissions:
       contents: read
@@ -39,7 +39,7 @@ jobs:
     # Em workflow_dispatch roda apenas a sonda acima; publicacao
     # continua exclusivamente no push para main.
     if: github.event_name == 'push'
-    runs-on: aireset-ci
+    runs-on: linux-general
 
     env:
       SRC_DIR: ./src
