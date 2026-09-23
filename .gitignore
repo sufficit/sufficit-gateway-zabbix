@@ -6,6 +6,9 @@ src/nupkgs/
 *.user
 *-local.csproj
 *.nupkg
+# exceção: fork Pomelo 10.0.0 versionado no repo para o restore no CI
+# público do GitHub (ubuntu-latest não tem acesso ao feed interno)
+!pkg/*.nupkg
 **/.artifacts/
 **/artifacts/
 # Worktrees (padrao): arvores de trabalho em <repo>/.worktrees/
