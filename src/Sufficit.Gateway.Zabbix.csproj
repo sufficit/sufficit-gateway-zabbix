@@ -82,18 +82,25 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- MySqlConnector on net7 uses the Extensions 8 abstractions. -->
+  <PropertyGroup>
+    <ExtensionsVersion>$(PkgVersion)</ExtensionsVersion>
+    <ExtensionsVersion Condition="'$(TargetFramework)' == 'net7.0'">[8.*,9.0.0)</ExtensionsVersion>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[*,9.0.0)" Condition=" '$(TargetFramework)' == 'net7.0' " />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="$(PkgVersion)" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(PkgVersion)" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="$(PkgVersion)" Condition="'$(TargetFramework)' == 'net7.0'" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="10.0.0" Condition=" '$(TargetFramework)' == 'net10.0' " />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(PkgVersion)" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(PkgVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="$(PkgVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(PkgVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="$(PkgVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="$(PkgVersion)" />
+    <PackageReference Include="MySqlConnector" Version="[2.6.1,3.0.0)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(ExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(ExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(ExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(ExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(ExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="$(ExtensionsVersion)" />
   </ItemGroup>
 
   <ItemGroup>
